@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "494078811252",
+    "project_id": "ferreapp-64f20",
+    "storage_bucket": "ferreapp-64f20.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:494078811252:android:0a835060ad1adb3738c521",
+        "android_client_info": {
+          "package_name": "com.example.ferre_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCJtTPnCqpns45cvbYHl4FoEk2x53hDv5Q"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
