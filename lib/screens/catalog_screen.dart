@@ -303,7 +303,7 @@ class _CatalogScreenState extends State<CatalogScreen> {
                     children: [
                       Expanded(
                         child: Text(
-                          '\$${product.price.toStringAsFixed(2)}',
+                          'S/${product.price.toStringAsFixed(2)}',
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             color: Colors.blue.shade600,

@@ -51,7 +51,7 @@ class _CartScreenState extends State<CartScreen> {
       builder: (BuildContext context) {
         return AlertDialog(
           title: Text('Confirmar Compra'),
-          content: Text('¿Deseas proceder con la compra por \$${_totalPrice.toStringAsFixed(2)}?'),
+          content: Text('¿Deseas proceder con la compra por S/${_totalPrice.toStringAsFixed(2)}?'),
           actions: [
             TextButton(
               child: Text('Cancelar'),
