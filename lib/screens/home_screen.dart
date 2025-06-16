@@ -34,12 +34,12 @@ class _HomeScreen extends State<HomeScreen>{
     _todosLosProductos = [
       Product(
         id: 1,
-        nombre: 'Taladro Inalámbrico DeWalt',
-        descripcion: 'Taladro inalámbrico 18V con batería incluida',
+        nombre: 'PALABRA 123',
+        descripcion: 'PALABRA 123',
         precio: 299.99,
         imagenUrl: '',
-        categoria: 'Herramientas',
-        marca: 'DeWalt',
+        categoria: 'PALABRA 123',
+        marca: 'PALABRA 123',
         stock: 15,
         rating: 4.8,
       ),
