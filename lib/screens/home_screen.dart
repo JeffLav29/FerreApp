@@ -1,4 +1,5 @@
 import 'package:ferre_app/models/product.dart';
+import 'package:ferre_app/screens/profile_screen.dart';
 import 'package:ferre_app/widgets/product_card.dart';
 import 'package:flutter/material.dart';
 
@@ -139,7 +140,7 @@ class _HomeScreen extends State<HomeScreen>{
       case 2:
         return _buildFavoritesContent();
       case 3:
-        return _buildProfileContent();
+        return ProfileScreen();
       default:
         return _buildHomeContent();
     }
@@ -282,20 +283,6 @@ class _HomeScreen extends State<HomeScreen>{
           SizedBox(height: 16),
           Text('Favoritos', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
           Text('Aquí irán los productos favoritos'),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildProfileContent() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.person, size: 64, color: Colors.green),
-          SizedBox(height: 16),
-          Text('Perfil', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-          Text('Aquí irá la información del usuario'),
         ],
       ),
     );
