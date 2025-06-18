@@ -1,5 +1,6 @@
 import 'package:ferre_app/models/product.dart';
 import 'package:ferre_app/screens/product_detail_screen.dart';
+import 'package:ferre_app/services/cart_manager.dart';
 import 'package:ferre_app/widgets/product_card.dart';
 import 'package:flutter/material.dart';
 
@@ -263,20 +264,29 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
-  void _viewProductDetails(Product product) {
-    debugPrint('Ver detalles de: ${product.nombre}');
-  }
 
   void _addToCart(Product product) {
     if (!mounted) return;
     
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('${product.nombre} agregado al carrito'),
-        duration: const Duration(seconds: 2),
-        backgroundColor: Colors.green,
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
+    try {
+      CartManager.addToCart(product);
+      CartManager.printCartContents();
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${product.nombre} agregado al carrito'),
+          duration: const Duration(seconds: 2),
+          backgroundColor: Colors.green,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error al agregar producto: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 }

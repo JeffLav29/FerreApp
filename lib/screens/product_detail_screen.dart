@@ -1,4 +1,5 @@
 import 'package:ferre_app/models/product.dart';
+import 'package:ferre_app/services/cart_manager.dart';
 import 'package:flutter/material.dart';
 
 class ProductDetailScreen extends StatefulWidget {
@@ -74,7 +75,15 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
 
             FilledButton(
               onPressed: () {
-                
+                CartManager.addToCart(widget.product);
+                ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('${widget.product.nombre} agregado al carrito'),
+                  duration: const Duration(seconds: 2),
+                  backgroundColor: Colors.green,
+                  behavior: SnackBarBehavior.floating,
+                ),
+              );
               },
               style: FilledButton.styleFrom(
                 backgroundColor: Colors.blue,
@@ -92,7 +101,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
 
             FilledButton(
               onPressed: () {
-                
+
               },
               style: FilledButton.styleFrom(
                 backgroundColor: const Color.fromARGB(255, 124, 1, 206),
