@@ -27,16 +27,30 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Image.network(
-              widget.product.imagenUrl.isNotEmpty
+            
+            FadeInImage.assetNetwork(
+              placeholder: 'assets/cat.gif', // o usa AssetImage
+              image: widget.product.imagenUrl.isNotEmpty
                 ? widget.product.imagenUrl
                 : 'https://via.placeholder.com/300x200?text=Sin+Imagen',
+              imageErrorBuilder: (context, error, stackTrace) {
+                return Container(
+                  height: 200,
+                  color: Colors.grey[300],
+                  child: Center(
+                    child: Text('No se pudo cargar la imagen'),
+                  ),
+                );
+              },
             ),
-        
             SizedBox(height: 10),
         
-            Text('Descripcion Técnica',style: TextStyle(fontWeight: FontWeight.bold, fontSize: 25),),
+            Text('Descripcion',style: TextStyle(fontWeight: FontWeight.bold, fontSize: 25),),
             SizedBox(height: 10),
+
+            Text(widget.product.descripcion, style: TextStyle(fontSize: 15),),
+
+            SizedBox(height: 10,),
         
             Text('Precio', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w500)),
             Text('${widget.product.precio} Soles', style: TextStyle(color: Colors.blueGrey),),
@@ -94,7 +108,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                 ),
                 minimumSize: Size(400, 50)
               ),
-              child: Text('Agregar a favoritos'),
+              child: Text('Agregar al carrito'),
             ),
 
             SizedBox(height: 10),
@@ -112,7 +126,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                 ),
                 minimumSize: Size(400, 50),
               ),
-              child: Text('Agregar al carrito'),
+              child: Text('Agregar a favoritos'),
             )
           ],
         ),
