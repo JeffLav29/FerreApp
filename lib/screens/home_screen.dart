@@ -1,4 +1,5 @@
 import 'package:ferre_app/models/product.dart';
+import 'package:ferre_app/screens/product_detail_screen.dart';
 import 'package:ferre_app/widgets/product_card.dart';
 import 'package:flutter/material.dart';
 
@@ -49,10 +50,10 @@ class _HomeScreenState extends State<HomeScreen> {
         nombre: 'Taladro Inalámbrico 18V',
         descripcion: 'Taladro inalámbrico con batería de litio 18V',
         precio: 299.99,
-        imagenUrl: '',
+        imagenUrl: 'https://drive.google.com/uc?export=view&id=15v2CRORn1C8eIdxJNkOm53_3QJueWxv9',
         categoria: 'Herramientas',
         marca: 'Black & Decker',
-        stock: 15,
+        stock: 1,
         rating: 4.8,
       ),
       Product(
@@ -204,7 +205,12 @@ class _HomeScreenState extends State<HomeScreen> {
                 itemBuilder: (context, index) {
                   return ProductCard(
                     product: _filteredProducts[index],
-                    onTap: () => _viewProductDetails(_filteredProducts[index]),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context)=> ProductDetailScreen(product: _filteredProducts[index],))
+                      );
+                    },
                     onAddToCart: () => _addToCart(_filteredProducts[index]),
                   );
                 },
