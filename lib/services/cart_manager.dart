@@ -1,5 +1,6 @@
 import 'package:ferre_app/models/product.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
 
 class CartManager {
   static final List<Product> _cartItems = [];
@@ -16,9 +17,34 @@ class CartManager {
   
   static int get itemCount => _cartItems.length;
   
-  static void removeFromCart(Product product) {
-    _cartItems.remove(product);
-    cartNotifier.value = List.from(_cartItems);
+  static void removeFromCart(BuildContext context, Product product) async {
+    bool? confirmDelete = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Confirmar eliminación'),
+          content: Text('¿Estás seguro de eliminar "${product.nombre}" del carrito?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: Text('No'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              style: TextButton.styleFrom(
+                foregroundColor: Colors.red,
+              ),
+              child: Text('Sí'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmDelete == true) {
+      _cartItems.removeWhere((item) => item == product);
+      cartNotifier.value = [..._cartItems]; // Usar spread operator
+    }
   }
   
   static void clearCart() {

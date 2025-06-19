@@ -61,7 +61,7 @@ class _CartScreenState extends State<CartScreen> {
                               icon: Icon(Icons.delete, color: Colors.red),
                               onPressed: () {
                                 setState(() {
-                                  CartManager.removeFromCart(product);
+                                  CartManager.removeFromCart(context,product);
                                 });
                               },
                             ),

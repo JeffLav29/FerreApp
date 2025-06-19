@@ -43,15 +43,16 @@ class ProductCard extends StatelessWidget {
                       SizedBox(
                         width: double.infinity,
                         height: double.infinity,
-                        child: product.imagenUrl.isNotEmpty
-                            ? Image.network(
-                                product.imagenUrl,
-                                fit: BoxFit.cover,
-                                errorBuilder: (context, error, stackTrace) {
-                                  return _buildPlaceholder();
-                                },
-                              )
-                            : _buildPlaceholder(),
+                        child: FadeInImage.assetNetwork(
+                          placeholder: 'assets/cat.gif', // Tu GIF de carga
+                          image: product.imagenUrl.isNotEmpty
+                              ? product.imagenUrl
+                              : 'https://via.placeholder.com/300x200?text=Sin+Imagen',
+                          fit: BoxFit.cover,
+                          imageErrorBuilder: (context, error, stackTrace) {
+                            return _buildPlaceholder();
+                          },
+                        ),
                       ),
                     ],
                   ),
