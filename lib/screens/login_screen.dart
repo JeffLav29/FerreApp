@@ -83,4 +83,5 @@ signInWithEmailAndPassword (String emailAddress, String password, BuildContext c
       print('Wrong password provided for that user.');
     }
   }
+  Navigator.pop(context, true);
 }

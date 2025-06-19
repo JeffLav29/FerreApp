@@ -2,6 +2,7 @@ import 'package:ferre_app/screens/cart_screen.dart';
 import 'package:ferre_app/screens/favorites_screen.dart';
 import 'package:ferre_app/screens/home_screen.dart';
 import 'package:ferre_app/screens/profile_screen.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 class MainScreen extends StatefulWidget {
@@ -13,13 +14,24 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   int _selectedIndex = 0;
-  
+  final user = FirebaseAuth.instance.currentUser;
   // Lista de pantallas
-  static const List<Widget> _screens = [
-    HomeScreen(),
-    CartScreen(),
-    FavoritesScreen(),
-    ProfileScreen(),
+  final List<Widget> _screens = [
+    HomeScreen(),  // 0 - Inicio
+    CartScreen(),  // 1 - Carrito
+    FavoritesScreen(),  // 2 - Favoritos
+    ProfileScreen(),  // 3 - Perfil
+  ];
+  
+  // Lista de pantallas públicas
+  final List<Widget> _publicScreens = [
+    HomeScreen(),  // 0 - Inicio
+    CartScreen(),  // 1 - Carrito
+    FavoritesScreen(),  // 2 - Favoritos
+  ];
+  //Lista de pantallas privadas
+  final List<Widget> _privateScreens = [
+    ProfileScreen(),  // 3 - Perfil
   ];
 
   // Títulos de AppBar para cada pantalla
