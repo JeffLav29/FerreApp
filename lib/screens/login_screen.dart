@@ -25,7 +25,9 @@ class _LoginScreenState extends State<LoginScreen> {
               child: TextField(
                 decoration: InputDecoration(
                   labelText: "Correo electrónico",
-                  border: OutlineInputBorder()
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12)
+                  )
                 ),
               ),
             ),
@@ -34,13 +36,21 @@ class _LoginScreenState extends State<LoginScreen> {
               child: TextField(
                 decoration: InputDecoration(
                   labelText: "Contraseña",
-                  border: OutlineInputBorder()
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12)
+                  )
                 ),
               ),
             ),
             FilledButton(
+              style: FilledButton.styleFrom(
+                padding: EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)
+                )
+              ),
               onPressed: () {
-
+                // Agregar método de Iniciar Sesión
               }, 
               child: Text("Ingresar"))
           ]
