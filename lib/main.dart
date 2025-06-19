@@ -1,3 +1,4 @@
+import 'package:ferre_app/screens/login_screen.dart';
 import 'package:ferre_app/screens/main_screen.dart';
 import 'package:flutter/material.dart';
 
@@ -14,7 +15,7 @@ class FerreApp extends StatelessWidget {
       title: 'FerreApp',
       debugShowCheckedModeBanner: false,
       theme: _buildTheme(),
-      home: const MainScreen(),
+      home: const LoginScreen(),
     );
   }
 
