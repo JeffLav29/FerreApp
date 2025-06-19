@@ -1,3 +1,4 @@
+import 'package:ferre_app/models/product.dart';
 import 'package:ferre_app/services/cart_manager.dart';
 import 'package:flutter/material.dart';
 
@@ -25,50 +26,53 @@ class _CartScreenState extends State<CartScreen> {
             SizedBox(height: 10,),
 
             Expanded(
-              child: CartManager.cartItems.isEmpty
-                  ? Center(
-                      child: Text(
-                        'Tu carrito está vacío',
-                        style: TextStyle(fontSize: 18, color: Colors.grey),
-                      ),
-                    )
-                  : ListView.builder(
-                      itemCount: CartManager.cartItems.length,
-                      itemBuilder: (context, index) {
-                        final product = CartManager.cartItems[index];
-                        return Card(
-                          margin: EdgeInsets.symmetric(vertical: 5),
-                          child: ListTile(
-                            leading: Image.network(
-                              product.imagenUrl.isNotEmpty 
-                                  ? product.imagenUrl 
-                                  : 'https://via.placeholder.com/50x50?text=Sin+Imagen',
-                              width: 50,
-                              height: 50,
-                              fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) {
-                                return Container(
+              child: ValueListenableBuilder<List<Product>>(
+                valueListenable: CartManager.cartNotifier,
+                builder: (context, cartItems, child) {
+                  return cartItems.isEmpty
+                      ? Center(
+                          child: Text(
+                            'Tu carrito está vacío',
+                            style: TextStyle(fontSize: 18, color: Colors.grey),
+                          ),
+                        )
+                      : ListView.builder(
+                          itemCount: cartItems.length,
+                          itemBuilder: (context, index) {
+                            final product = cartItems[index];
+                            return Card(
+                              margin: EdgeInsets.symmetric(vertical: 5),
+                              child: ListTile(
+                                leading: Image.network(
+                                  product.imagenUrl.isNotEmpty 
+                                      ? product.imagenUrl 
+                                      : 'https://via.placeholder.com/50x50?text=Sin+Imagen',
                                   width: 50,
                                   height: 50,
-                                  color: Colors.grey[300],
-                                  child: Icon(Icons.image_not_supported),
-                                );
-                              },
-                            ),
-                            title: Text(product.nombre),
-                            subtitle: Text('S/. ${product.precio}'),
-                            trailing: IconButton(
-                              icon: Icon(Icons.delete, color: Colors.red),
-                              onPressed: () {
-                                setState(() {
-                                  CartManager.removeFromCart(context,product);
-                                });
-                              },
-                            ),
-                          ),
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (context, error, stackTrace) {
+                                    return Container(
+                                      width: 50,
+                                      height: 50,
+                                      color: Colors.grey[300],
+                                      child: Icon(Icons.image_not_supported),
+                                    );
+                                  },
+                                ),
+                                title: Text(product.nombre),
+                                subtitle: Text('S/. ${product.precio}'),
+                                trailing: IconButton(
+                                  icon: Icon(Icons.delete, color: Colors.red),
+                                  onPressed: () {
+                                    CartManager.removeFromCart(context, product);
+                                  },
+                                ),
+                              ),
+                            );
+                          },
                         );
-                      },
-                    ),
+                },
+              ),
             ),
 
 

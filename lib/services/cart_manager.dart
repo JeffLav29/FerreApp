@@ -17,7 +17,7 @@ class CartManager {
   
   static int get itemCount => _cartItems.length;
   
-  static void removeFromCart(BuildContext context, Product product) async {
+  static void removeFromCart(BuildContext context, Product product, {VoidCallback? onRemoved}) async {
     bool? confirmDelete = await showDialog<bool>(
       context: context,
       builder: (BuildContext context) {
@@ -41,9 +41,12 @@ class CartManager {
       },
     );
 
+    // Solo eliminar si el usuario confirmó
     if (confirmDelete == true) {
-      _cartItems.removeWhere((item) => item == product);
-      cartNotifier.value = [..._cartItems]; // Usar spread operator
+      _cartItems.remove(product);
+      cartNotifier.value = List.from(_cartItems);
+      // Llamar al callback si se proporciona
+      onRemoved?.call();
     }
   }
   
