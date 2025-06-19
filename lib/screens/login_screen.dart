@@ -1,3 +1,5 @@
+import 'package:ferre_app/screens/main_screen.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -8,6 +10,9 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
+  final emailController = TextEditingController();
+  final passwordController = TextEditingController();
+  
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -23,6 +28,7 @@ class _LoginScreenState extends State<LoginScreen> {
             SizedBox(
               height: 64,
               child: TextField(
+                controller: emailController,
                 decoration: InputDecoration(
                   labelText: "Correo electrónico",
                   border: OutlineInputBorder(
@@ -34,6 +40,7 @@ class _LoginScreenState extends State<LoginScreen> {
             SizedBox(
               height: 64,
               child: TextField(
+                controller: passwordController,
                 decoration: InputDecoration(
                   labelText: "Contraseña",
                   border: OutlineInputBorder(
@@ -50,6 +57,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 )
               ),
               onPressed: () {
+                signInWithEmailAndPassword(emailController.text, passwordController.text, context,);
                 // Agregar método de Iniciar Sesión
               }, 
               child: Text("Ingresar"))
@@ -57,5 +65,22 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
       ),
     );
+  }
+}
+
+// Métodos
+signInWithEmailAndPassword (String emailAddress, String password, BuildContext context) async {
+  try {
+    final credential = await FirebaseAuth.instance.signInWithEmailAndPassword(
+      email: emailAddress,
+      password: password
+    );
+  Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => MainScreen()),);
+  } on FirebaseAuthException catch (e) {
+    if (e.code == 'user-not-found') {
+      print('No user found for that email.');
+    } else if (e.code == 'wrong-password') {
+      print('Wrong password provided for that user.');
+    }
   }
 }
