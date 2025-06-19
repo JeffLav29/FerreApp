@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ferre_app/models/product.dart';
 import 'package:ferre_app/screens/product_detail_screen.dart';
 import 'package:ferre_app/services/cart_manager.dart';
@@ -31,11 +32,16 @@ class _HomeScreenState extends State<HomeScreen> {
   
   List<Product> _allProducts = [];
   List<Product> _filteredProducts = [];
+  bool _isLoading = true;
+  String? _errorMessage;
+
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final String _collectionName = 'productos';
 
   @override
   void initState() {
     super.initState();
-    _loadProducts();
+    _loadProductsFromFirestore();
   }
 
   @override
@@ -44,77 +50,50 @@ class _HomeScreenState extends State<HomeScreen> {
     super.dispose();
   }
 
-  void _loadProducts() {
-    _allProducts = [
-      Product(
-        id: 1,
-        nombre: 'Taladro Inalámbrico 18V',
-        descripcion: 'Taladro inalámbrico con batería de litio 18V',
-        precio: 299.99,
-        imagenUrl: 'https://drive.google.com/uc?export=view&id=15v2CRORn1C8eIdxJNkOm53_3QJueWxv9',
-        categoria: 'Herramientas',
-        marca: 'Black & Decker',
-        stock: 1,
-        rating: 4.8,
-      ),
-      Product(
-        id: 2,
-        nombre: 'Tornillos Autorroscantes x100',
-        descripcion: 'Pack de 100 tornillos autorroscantes 3.5x25mm',
-        precio: 12.50,
-        imagenUrl: '',
-        categoria: 'Tornillos',
-        marca: 'Stanley',
-        stock: 50,
-        rating: 4.2,
-      ),
-      Product(
-        id: 3,
-        nombre: 'Pintura Látex Blanco 4L',
-        descripcion: 'Pintura látex lavable para interiores',
-        precio: 45.90,
-        imagenUrl: '',
-        categoria: 'Pinturas',
-        marca: 'Sherwin Williams',
-        stock: 8,
-        rating: 4.5,
-      ),
-      Product(
-        id: 4,
-        nombre: 'Cable Eléctrico 2.5mm x10m',
-        descripcion: 'Cable eléctrico THW 2.5mm, rollo de 10 metros',
-        precio: 28.75,
-        imagenUrl: '',
-        categoria: 'Electricidad',
-        marca: 'Indeco',
-        stock: 3,
-        rating: 4.0,
-      ),
-      Product(
-        id: 5,
-        nombre: 'Llave Inglesa Ajustable 10"',
-        descripcion: 'Llave inglesa ajustable de 10 pulgadas',
-        precio: 35.00,
-        imagenUrl: '',
-        categoria: 'Herramientas',
-        marca: 'Stanley',
-        stock: 12,
-        rating: 4.6,
-      ),
-      Product(
-        id: 6,
-        nombre: 'Tubería PVC 1/2" x6m',
-        descripcion: 'Tubería PVC sanitaria 1/2 pulgada',
-        precio: 18.50,
-        imagenUrl: '',
-        categoria: 'Plomeria',
-        marca: 'Pavco',
-        stock: 25,
-        rating: 4.3,
-      ),
-    ];
-    
-    _filteredProducts = _allProducts;
+  // Cargar productos desde Firestore
+  Future<void> _loadProductsFromFirestore() async {
+    try {
+      setState(() {
+        _isLoading = true;
+        _errorMessage = null;
+      });
+
+      QuerySnapshot querySnapshot = await _firestore
+          .collection(_collectionName)
+          .orderBy('nombre')
+          .get();
+
+      List<Product> products = [];
+      
+      for (var doc in querySnapshot.docs) {
+        try {
+          Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+          
+          // Agregamos el ID del documento de Firestore como 'id' si no existe
+          if (!data.containsKey('id')) {
+            data['id'] = doc.id.hashCode; // Convertimos el docId a int
+          }
+          
+          Product product = Product.fromJson(data);
+          products.add(product);
+        } catch (e) {
+          print('Error al procesar producto ${doc.id}: $e');
+        }
+      }
+
+      setState(() {
+        _allProducts = products;
+        _filteredProducts = products;
+        _isLoading = false;
+      });
+
+    } catch (e) {
+      setState(() {
+        _errorMessage = 'Error al cargar productos: $e';
+        _isLoading = false;
+      });
+      print('Error loading products: $e');
+    }
   }
 
   @override
@@ -190,6 +169,45 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildProductGrid() {
+    if (_isLoading) {
+      return const Expanded(
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: 16),
+              Text('Cargando productos...'),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (_errorMessage != null) {
+      return Expanded(
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.error, size: 64, color: Colors.red),
+              const SizedBox(height: 16),
+              Text(
+                _errorMessage!,
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Colors.red),
+              ),
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: _loadProductsFromFirestore,
+                child: const Text('Reintentar'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return Expanded(
       child: _filteredProducts.isEmpty
           ? _buildEmptyState()
@@ -209,7 +227,11 @@ class _HomeScreenState extends State<HomeScreen> {
                     onTap: () {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (context)=> ProductDetailScreen(product: _filteredProducts[index],))
+                        MaterialPageRoute(
+                          builder: (context) => ProductDetailScreen(
+                            product: _filteredProducts[index],
+                          ),
+                        ),
                       );
                     },
                     onAddToCart: () => _addToCart(_filteredProducts[index]),

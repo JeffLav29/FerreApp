@@ -1,5 +1,4 @@
 import 'package:ferre_app/screens/main_screen.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 // Paquetes de Firebase
 import 'package:ferre_app/firebase_options.dart';
