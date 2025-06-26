@@ -292,7 +292,6 @@ class _HomeScreenState extends State<HomeScreen> {
     
     try {
       CartManager.addToCart(product);
-      CartManager.printCartContents();
       
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(

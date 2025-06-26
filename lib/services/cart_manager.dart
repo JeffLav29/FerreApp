@@ -1,5 +1,4 @@
 import 'package:ferre_app/models/product.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 class CartManager {
@@ -53,35 +52,6 @@ class CartManager {
   static void clearCart() {
     _cartItems.clear();
     cartNotifier.value = List.from(_cartItems);
-  }
-
-  // Nuevo método: Obtener cantidad de un producto específico en el carrito
-  static int getQuantityInCart(String productId) {
-    return _cartItems.where((product) => product.id == productId).length;
-  }
-
-  // Nuevo método: Verificar si hay stock disponible
-  static bool hasStockAvailable(Product product) {
-    int quantityInCart = getQuantityInCart(product.id as String);
-    return quantityInCart < product.stock;
-  }
-
-  // Nuevo método: Obtener stock disponible restante
-  static int getAvailableStock(Product product) {
-    int quantityInCart = getQuantityInCart(product.id as String);
-    return product.stock - quantityInCart;
-  }
-
-  // Método corregido para lista simple de Product
-  static void printCartContents() {
-    print('=== CONTENIDO DEL CARRITO ===');
-    print('Total items: $itemCount'); // Cambié totalItems por itemCount
-    print('Precio total: \$${totalPrice.toStringAsFixed(2)}');
-    print('Productos:');
-    for (var product in _cartItems) {
-      print('- ${product.nombre} = \$${product.precio.toStringAsFixed(2)}'); // Cambié item.product por product
-    }
-    print('=============================');
   }
 
   // Agregar método para calcular precio total
