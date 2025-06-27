@@ -118,7 +118,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
 
               },
               style: FilledButton.styleFrom(
-                backgroundColor: const Color.fromARGB(255, 124, 1, 206),
+                backgroundColor: const Color.fromARGB(255, 226, 16, 1),
                 foregroundColor: Colors.white,
                 padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                 shape: RoundedRectangleBorder(
