@@ -1,4 +1,5 @@
 import 'package:ferre_app/screens/main_screen.dart';
+import 'package:ferre_app/screens/register_screen.dart'; // Importa tu pantalla de registro
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
@@ -60,6 +61,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   height: 64,
                   child: TextField(
                     controller: passwordController,
+                    obscureText: true, // Ocultar contraseña
                     decoration: InputDecoration(
                       labelText: "Contraseña",
                       border: OutlineInputBorder(
@@ -79,9 +81,63 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   onPressed: () {
                     signInWithEmailAndPassword(emailController.text, passwordController.text, context,);
-                    // Agregar método de Iniciar Sesión
                   }, 
                   child: Text("Ingresar")),
+                
+                SizedBox(height: 16), // Espaciado entre botones
+                
+                OutlinedButton(
+                  style: OutlinedButton.styleFrom(
+                    padding: EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)
+                    ),
+                    side: BorderSide(color: Colors.blue[500]!)
+                  ),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const RegisterScreen())
+                    );
+                  }, 
+                  child: Text(
+                    "Crear cuenta",
+                    style: TextStyle(color: Colors.blue[500]),
+                  )),
+                
+                SizedBox(height: 16),
+                
+                Center(
+                  child: Text(
+                    "¿No tienes cuenta? Créala usando el botón de arriba",
+                    style: TextStyle(
+                      color: Colors.grey[600],
+                      fontSize: 12
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+                
+                SizedBox(height: 32),
+                
+                Center(
+                  child: TextButton(
+                    onPressed: () {
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(builder: (context) => const MainScreen())
+                      );
+                    },
+                    child: Text(
+                      "Continuar sin iniciar sesión",
+                      style: TextStyle(
+                        color: Colors.grey[700],
+                        fontSize: 14,
+                        decoration: TextDecoration.underline,
+                      ),
+                    ),
+                  ),
+                ),
               ]
             ),
           ),
