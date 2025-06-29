@@ -6,7 +6,7 @@ import 'package:flutter/foundation.dart';
 class WhatsAppService {
   static const String _baseUrl = 'https://serviciowhatsapp-production.up.railway.app'; // ✅ ACTUALIZADO: URL de Railway
   static const String _apiEndpoint = '/api/whatsapp';
-  static const String _apiKey = '473yj4kx8237l3i2dvxstfa'; // ✅ AGREGADO: API Key
+  static const String _apiKey = ''; // ✅ AGREGADO: API Key
   
   // Singleton pattern
   static final WhatsAppService _instance = WhatsAppService._internal();
