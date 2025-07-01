@@ -15,12 +15,32 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   int _selectedIndex = 0;
+  String _userId = '';
 
-  // Lista de pantallas
-  final List<Widget> _screens = [
-    HomeScreen(),      // 0 - Inicio
-    CartScreen(),      // 1 - Carrito
-    FavoritesScreen(), // 2 - Favoritos
+  @override
+  void initState() {
+    super.initState();
+    _updateUserId();
+    
+    // Escuchar cambios en el estado de autenticación
+    FirebaseAuth.instance.authStateChanges().listen((User? user) {
+      if (mounted) {
+        _updateUserId();
+      }
+    });
+  }
+
+  void _updateUserId() {
+    setState(() {
+      _userId = FirebaseAuth.instance.currentUser?.uid ?? '';
+    });
+  }
+
+  // Getter para obtener las pantallas dinámicamente
+  List<Widget> get _screens => [
+    HomeScreen(userId: _userId,),      // 0 - Inicio
+    CartScreen(userId: _userId),      // 1 - Carrito
+    FavoritesScreen(userId: _userId), // 2 - Favoritos
     ProfileScreen(),   // 3 - Perfil
   ];
 
@@ -58,22 +78,33 @@ class _MainScreenState extends State<MainScreen> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text('Iniciar Sesión'),
+          title: const Row(
+            children: [
+              Icon(Icons.login, color: Colors.blue),
+              SizedBox(width: 10),
+              Text('Inicio Requerido'),
+            ],
+          ),
           content: const Text(
-            'Debes iniciar sesión para acceder a esta función.',
+            'Para seguir disfrutando de nuevas funciones necesitas iniciar sesión.\n\n'
+            'Iniciando sesion podras acceder a funciones como: Perfil, Favoritos y el carrito'
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
           ),
           actions: [
             TextButton(
               onPressed: () {
                 Navigator.of(context).pop();
               },
-              child: const Text('Cancelar'),
+              child: const Text('Más tarde'),
             ),
-            ElevatedButton(
+            FilledButton(
               onPressed: () {
-                Navigator.of(context).pop();
-                // Aquí navegas a tu pantalla de login
-                _navigateToLogin();
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => LoginScreen(),)
+                );
               },
               child: const Text('Iniciar Sesión'),
             ),
@@ -83,12 +114,6 @@ class _MainScreenState extends State<MainScreen> {
     );
   }
 
-  void _navigateToLogin(){
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => LoginScreen(),)
-    );
-  }
 
   @override
   Widget build(BuildContext context) {

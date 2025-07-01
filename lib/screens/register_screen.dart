@@ -16,6 +16,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _nameController = TextEditingController();
+  final _apellidoController = TextEditingController(); // Nuevo campo
+  final _nombreUsuarioController = TextEditingController(); // Nuevo campo
   final _phoneController = TextEditingController();
   
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -28,6 +30,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _emailController.dispose();
     _passwordController.dispose();
     _nameController.dispose();
+    _apellidoController.dispose(); // Dispose del nuevo campo
+    _nombreUsuarioController.dispose(); // Dispose del nuevo campo
     _phoneController.dispose();
     super.dispose();
   }
@@ -40,6 +44,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
     });
 
     try {
+      // Verificar si el nombre de usuario ya existe
+      final usernameExists = await _checkUsernameExists(_nombreUsuarioController.text.trim());
+      if (usernameExists) {
+        _showErrorDialog('El nombre de usuario ya está en uso. Por favor elige otro.');
+        setState(() {
+          _isLoading = false;
+        });
+        return;
+      }
+
       // 1. Crear usuario en Firebase Auth
       final UserCredential userCredential = await _auth.createUserWithEmailAndPassword(
         email: _emailController.text.trim(),
@@ -52,8 +66,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
       // 3. Crear documento en Firestore con el mismo UID
       await _createUserDocument(uid);
 
-      // 4. Actualizar el displayName en Firebase Auth
-      await userCredential.user!.updateDisplayName(_nameController.text.trim());
+      // 4. Actualizar el displayName en Firebase Auth (nombre completo)
+      final nombreCompleto = '${_nameController.text.trim()} ${_apellidoController.text.trim()}';
+      await userCredential.user!.updateDisplayName(nombreCompleto);
 
       // 5. Verificar que el widget aún esté montado antes de usar context
       if (!mounted) return;
@@ -83,11 +98,27 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
   }
 
+  Future<bool> _checkUsernameExists(String username) async {
+    try {
+      final QuerySnapshot result = await _firestore
+          .collection('users')
+          .where('nombreUsuario', isEqualTo: username)
+          .limit(1)
+          .get();
+      
+      return result.docs.isNotEmpty;
+    } catch (e) {
+      return false;
+    }
+  }
+
   Future<void> _createUserDocument(String uid) async {
     try {
       final userData = {
         'uid': uid,
         'nombre': _nameController.text.trim(),
+        'apellido': _apellidoController.text.trim(), // Nuevo campo
+        'nombreUsuario': _nombreUsuarioController.text.trim(), // Nuevo campo
         'email': _emailController.text.trim(),
         'telefono': _phoneController.text.trim(),
         'tipoCliente': 'Cliente Regular',
@@ -172,13 +203,58 @@ class _RegisterScreenState extends State<RegisterScreen> {
               TextFormField(
                 controller: _nameController,
                 decoration: const InputDecoration(
-                  labelText: 'Nombre completo',
+                  labelText: 'Nombre',
                   prefixIcon: Icon(Icons.person),
                   border: OutlineInputBorder(),
                 ),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
                     return 'Por favor ingresa tu nombre';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+              
+              // Campo Apellido (NUEVO)
+              TextFormField(
+                controller: _apellidoController,
+                decoration: const InputDecoration(
+                  labelText: 'Apellido',
+                  prefixIcon: Icon(Icons.person_outline),
+                  border: OutlineInputBorder(),
+                ),
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Por favor ingresa tu apellido';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+              
+              // Campo Nombre de Usuario (NUEVO)
+              TextFormField(
+                controller: _nombreUsuarioController,
+                decoration: const InputDecoration(
+                  labelText: 'Nombre de usuario',
+                  prefixIcon: Icon(Icons.alternate_email),
+                  border: OutlineInputBorder(),
+                  helperText: 'Debe ser único, sin espacios',
+                ),
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Por favor ingresa un nombre de usuario';
+                  }
+                  if (value.contains(' ')) {
+                    return 'El nombre de usuario no puede contener espacios';
+                  }
+                  if (value.length < 3) {
+                    return 'El nombre de usuario debe tener al menos 3 caracteres';
+                  }
+                  // Validar que solo contenga letras, números y guiones bajos
+                  if (!RegExp(r'^[a-zA-Z0-9_]+$').hasMatch(value)) {
+                    return 'Solo se permiten letras, números y guiones bajos';
                   }
                   return null;
                 },

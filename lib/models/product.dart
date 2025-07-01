@@ -70,6 +70,8 @@ class Product {
     };
   }
 
+  
+
   // Método para convertir a Map sin el ID (útil para Firestore)
   Map<String, dynamic> toFirestore() {
     final data = toJson();

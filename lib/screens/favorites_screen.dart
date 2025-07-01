@@ -1,61 +1,77 @@
+import 'package:ferre_app/screens/main_screen.dart';
+import 'package:ferre_app/services/cart_manager.dart';
+import 'package:ferre_app/services/favorites_service.dart';
 import 'package:flutter/material.dart';
+import 'package:ferre_app/models/product.dart';
 
 class FavoritesScreen extends StatefulWidget {
-  const FavoritesScreen({super.key});
+  final String userId; // Pasar el userId como parámetro
+  
+  const FavoritesScreen({
+    super.key,
+    required this.userId,
+  });
 
   @override
   State<FavoritesScreen> createState() => _FavoritesScreenState();
 }
 
 class _FavoritesScreenState extends State<FavoritesScreen> {
-  // Lista de productos favoritos de ejemplo
-  List<Map<String, dynamic>> favoriteProducts = [
-    {
-      'id': '1',
-      'name': 'Martillo de Acero',
-      'price': 25.99,
-      'image': 'assets/images/hammer.png', // Ruta de ejemplo
-      'category': 'Herramientas',
-      'description': 'Martillo resistente para uso profesional'
-    },
-    {
-      'id': '2',
-      'name': 'Taladro Eléctrico',
-      'price': 89.99,
-      'image': 'assets/images/drill.png',
-      'category': 'Herramientas Eléctricas',
-      'description': 'Taladro con batería recargable'
-    },
-    {
-      'id': '3',
-      'name': 'Clavos 2 pulgadas',
-      'price': 12.50,
-      'image': 'assets/images/nails.png',
-      'category': 'Ferretería',
-      'description': 'Caja con 100 clavos galvanizados'
-    },
-  ];
+  final FavoritosService _favoritosService = FavoritosService();
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          'Favoritos',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        centerTitle: true,
-        backgroundColor: Colors.blue[50],
         actions: [
-          if (favoriteProducts.isNotEmpty)
-            IconButton(
-              icon: const Icon(Icons.clear_all),
-              onPressed: () => _showClearAllDialog(),
-              tooltip: 'Limpiar todo',
-            ),
+          IconButton(
+            icon: const Icon(Icons.clear_all),
+            onPressed: () => _showClearAllDialog(),
+            tooltip: 'Limpiar todo',
+          ),
         ],
       ),
-      body: favoriteProducts.isEmpty ? _buildEmptyState() : _buildFavoritesList(),
+      body: StreamBuilder<List<Product>>(
+        stream: _favoritosService.favoritosStream(widget.userId),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(
+              child: CircularProgressIndicator(),
+            );
+          }
+
+          if (snapshot.hasError) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.error_outline,
+                    size: 64,
+                    color: Colors.red[400],
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Error al cargar favoritos',
+                    style: TextStyle(
+                      fontSize: 18,
+                      color: Colors.red[600],
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }
+
+          final favoriteProducts = snapshot.data ?? [];
+
+          if (favoriteProducts.isEmpty) {
+            return _buildEmptyState();
+          }
+
+          return _buildFavoritesList(favoriteProducts);
+        },
+      ),
     );
   }
 
@@ -90,8 +106,10 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
           const SizedBox(height: 24),
           ElevatedButton.icon(
             onPressed: () {
-              // Navegar a la pantalla principal o catálogo
-              Navigator.pop(context);
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (context) => MainScreen())
+              );
             },
             icon: const Icon(Icons.shopping_bag),
             label: const Text('Explorar productos'),
@@ -109,7 +127,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
     );
   }
 
-  Widget _buildFavoritesList() {
+  Widget _buildFavoritesList(List<Product> favoriteProducts) {
     return ListView.builder(
       padding: const EdgeInsets.all(16),
       itemCount: favoriteProducts.length,
@@ -120,7 +138,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
     );
   }
 
-  Widget _buildFavoriteCard(Map<String, dynamic> product, int index) {
+  Widget _buildFavoriteCard(Product product, int index) {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       elevation: 2,
@@ -139,11 +157,26 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                 color: Colors.grey[200],
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: Icon(
-                Icons.hardware, // Icono por defecto
-                size: 40,
-                color: Colors.grey[600],
-              ),
+              child: product.imagenUrl.isNotEmpty
+                  ? ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: Image.network(
+                        product.imagenUrl,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) {
+                          return Icon(
+                            Icons.hardware,
+                            size: 40,
+                            color: Colors.grey[600],
+                          );
+                        },
+                      ),
+                    )
+                  : Icon(
+                      Icons.hardware,
+                      size: 40,
+                      color: Colors.grey[600],
+                    ),
             ),
             const SizedBox(width: 12),
             
@@ -153,7 +186,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    product['name'],
+                    product.nombre,
                     style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
@@ -163,7 +196,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    product['category'],
+                    product.categoria,
                     style: TextStyle(
                       fontSize: 12,
                       color: Colors.grey[600],
@@ -171,7 +204,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    product['description'],
+                    product.descripcion,
                     style: TextStyle(
                       fontSize: 13,
                       color: Colors.grey[700],
@@ -180,13 +213,20 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 8),
-                  Text(
-                    '\$${product['price'].toStringAsFixed(2)}',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.blue[600],
-                    ),
+                  // Mostrar precio con descuento si está en oferta
+                  const SizedBox(height: 8),
+                  // Mostrar precio
+                  Row(
+                    children: [
+                      Text(
+                        'S/${product.precio.toStringAsFixed(2)}',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.blue[600],
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -197,7 +237,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
               children: [
                 IconButton(
                   icon: const Icon(Icons.favorite, color: Colors.red),
-                  onPressed: () => _removeFromFavorites(index),
+                  onPressed: () => _removeFromFavorites(product),
                   tooltip: 'Quitar de favoritos',
                 ),
                 const SizedBox(height: 8),
@@ -214,36 +254,69 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
     );
   }
 
-  void _removeFromFavorites(int index) {
-    setState(() {
-      favoriteProducts.removeAt(index);
-    });
+  Future<void> _removeFromFavorites(Product product) async {
+    final success = await _favoritosService.quitarDeFavoritos(product.id, widget.userId);
     
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text('Producto removido de favoritos'),
-        backgroundColor: Colors.orange[600],
-        behavior: SnackBarBehavior.floating,
-        action: SnackBarAction(
-          label: 'DESHACER',
-          textColor: Colors.white,
-          onPressed: () {
-            // Aquí podrías implementar la funcionalidad de deshacer
-          },
+    if (success) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${product.nombre} removido de favoritos'),
+          backgroundColor: Colors.orange[600],
+          behavior: SnackBarBehavior.floating,
         ),
-      ),
-    );
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Error al remover de favoritos'),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
   }
 
-  void _addToCart(Map<String, dynamic> product) {
-    // Aquí implementarías la lógica para agregar al carrito
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('${product['name']} agregado al carrito'),
-        backgroundColor: Colors.green[600],
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
+  void _addToCart(Product product) {
+    try {
+      // Verificar si el producto ya está en el carrito
+      if (CartManager.cartItems.any((item) => item.id == product.id)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${product.nombre} ya está en el carrito'),
+            backgroundColor: Colors.orange[600],
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        return;
+      }
+
+      // Agregar al carrito usando CartManager
+      CartManager.addToCart(product);
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${product.nombre} agregado al carrito'),
+          backgroundColor: Colors.green[600],
+          behavior: SnackBarBehavior.floating,
+          action: SnackBarAction(
+            label: 'Ver carrito',
+            textColor: Colors.white,
+            onPressed: () {
+              // Navegar al carrito (ajusta la ruta según tu app)
+              Navigator.pushNamed(context, '/cart');
+            },
+          ),
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Error al agregar al carrito'),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
   }
 
   void _showClearAllDialog() {
@@ -262,18 +335,27 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
               child: const Text('Cancelar'),
             ),
             TextButton(
-              onPressed: () {
-                setState(() {
-                  favoriteProducts.clear();
-                });
+              onPressed: () async {
+                final success = await _favoritosService.limpiarFavoritos(widget.userId);
                 Navigator.of(context).pop();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Todos los favoritos han sido eliminados'),
-                    backgroundColor: Colors.red,
-                    behavior: SnackBarBehavior.floating,
-                  ),
-                );
+                
+                if (success) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Todos los favoritos han sido eliminados'),
+                      backgroundColor: Colors.red,
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Error al eliminar favoritos'),
+                      backgroundColor: Colors.red,
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                }
               },
               child: const Text('Eliminar todo', style: TextStyle(color: Colors.red)),
             ),

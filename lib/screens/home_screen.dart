@@ -1,7 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ferre_app/models/product.dart';
 import 'package:ferre_app/screens/product_detail_screen.dart';
-import 'package:ferre_app/services/cart_manager.dart';
+import 'package:ferre_app/services/cart_services.dart';
 import 'package:ferre_app/widgets/product_card.dart';
 import 'package:flutter/material.dart';
 
@@ -20,7 +20,12 @@ class AppConstants {
 }
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  final String userId; // Agregar userId como parámetro requerido
+  
+  const HomeScreen({
+    super.key,
+    required this.userId,
+  });
   
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -28,6 +33,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final TextEditingController _searchController = TextEditingController();
+  final CartServices _cartService = CartServices(); // Instancia del servicio
   String _selectedCategory = 'Todas';
   
   List<Product> _allProducts = [];
@@ -42,6 +48,7 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _loadProductsFromFirestore();
+    _sincronizarCarritoSiEsNecesario();
   }
 
   @override
@@ -286,28 +293,113 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
-
-  void _addToCart(Product product) {
+    Future<void> _addToCart(Product product) async {
     if (!mounted) return;
     
     try {
-      CartManager.addToCart(product);
-      
+      // Mostrar indicador de carga mientras se procesa
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('${product.nombre} agregado al carrito'),
-          duration: const Duration(seconds: 2),
-          backgroundColor: Colors.green,
+        const SnackBar(
+          content: Row(
+            children: [
+              SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
+              ),
+              SizedBox(width: 16),
+              Text('Agregando al carrito...'),
+            ],
+          ),
+          duration: Duration(seconds: 1),
+          backgroundColor: Colors.orange,
           behavior: SnackBarBehavior.floating,
         ),
       );
+
+      // Verificar si el producto ya está en el carrito
+      final isInCart = await _cartService.estanEnCarrito(product.id, widget.userId);
+      
+      if (isInCart) {
+        // Ocultar el snackbar anterior
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${product.nombre} ya está en el carrito'),
+            backgroundColor: Colors.orange[600],
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+        return;
+      }
+
+      // Agregar el producto al carrito (puede ser local o Firestore)
+      final success = await _cartService.agregarACarrito(product, widget.userId);
+      
+      // Ocultar el snackbar de carga
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      
+      if (success) {
+        final mensaje = widget.userId != null && widget.userId!.isNotEmpty
+            ? '${product.nombre} agregado al carrito'
+            : '${product.nombre} agregado al carrito temporal';
+            
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(mensaje),
+            backgroundColor: Colors.green[600],
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 2),
+            action: SnackBarAction(
+              label: 'Ver carrito',
+              textColor: Colors.white,
+              onPressed: () {
+                Navigator.pushNamed(context, '/cart');
+              },
+            ),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Error al agregar producto al carrito'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
     } catch (e) {
+      // Ocultar cualquier snackbar anterior
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Error al agregar producto: $e'),
+          content: Text('Error inesperado: $e'),
           backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 3),
         ),
       );
+    }
+  }
+
+    Future<void> _sincronizarCarritoSiEsNecesario() async {
+    // Solo sincronizar si hay un userId válido
+    if (widget.userId.isNotEmpty) {
+      try {
+        final sincronizado = await _cartService.verificarYSincronizarCarrito(widget.userId);
+        if (sincronizado) {
+          print('Carrito sincronizado exitosamente para usuario: ${widget.userId}');
+        }
+      } catch (e) {
+        print('Error al sincronizar carrito: $e');
+      }
     }
   }
 }
