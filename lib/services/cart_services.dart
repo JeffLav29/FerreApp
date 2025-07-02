@@ -1,5 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ferre_app/models/product.dart';
+import 'package:ferre_app/models/cart_item.dart'; // Importar el nuevo modelo
+import 'package:flutter/rendering.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'dart:async';
@@ -9,77 +11,138 @@ class CartServices {
   static const String _localCartKey = 'local_cart';
   
   // StreamController para notificar cambios en el carrito local
-  final StreamController<List<Product>> _localCartController = StreamController<List<Product>>.broadcast();
+  final StreamController<List<CartItem>> _localCartController = StreamController<List<CartItem>>.broadcast();
 
-    // Agregar este método público para verificar y sincronizar automáticamente
+  // Verificar y sincronizar automáticamente
   Future<bool> verificarYSincronizarCarrito(String userId) async {
     try {
-      // Verificar si hay productos locales
       final tieneProductosLocales = await this.tieneProductosLocales();
       
       if (tieneProductosLocales) {
-        print('Sincronizando carrito local con usuario: $userId');
+        debugPrint('Sincronizando carrito local con usuario: $userId');
         return await sincronizarCarritoAlLoguear(userId);
       }
       
-      return true; // No hay nada que sincronizar
+      return true;
     } catch (e) {
-      print('Error al verificar y sincronizar carrito: $e');
+      debugPrint('Error al verificar y sincronizar carrito: $e');
       return false;
     }
   }
 
-  // Agregar producto al carrito (local o Firestore según el estado de autenticación)
-  Future<bool> agregarACarrito(Product product, String? userId) async {
+  // Agregar producto al carrito (NUEVA LÓGICA CON CANTIDADES)
+  Future<bool> agregarACarrito(Product product, String? userId, {int cantidad = 1}) async {
     try {
       if (userId != null && userId.isNotEmpty) {
-        // Usuario logueado - guardar en Firestore
-        return await _agregarAFirestore(product, userId);
+        return await _agregarAFirestore(product, userId, cantidad);
       } else {
-        // Usuario no logueado - guardar localmente
-        return await _agregarLocalmente(product);
+        return await _agregarLocalmente(product, cantidad);
       }
     } catch (e) {
-      print('Error al agregar al carrito: $e');
+      debugPrint('Error al agregar al carrito: $e');
       return false;
     }
   }
 
-  // Agregar producto a Firestore
-  Future<bool> _agregarAFirestore(Product product, String userId) async {
+  // Agregar producto a Firestore con manejo de cantidades
+  Future<bool> _agregarAFirestore(Product product, String userId, int cantidad) async {
     try {
-      final carritoData = product.toJson();
-      carritoData['fechaAgregado'] = Timestamp.now();
-      carritoData['userId'] = userId;
-
-      await _firestore
+      final docRef = _firestore
           .collection('carrito')
           .doc(userId)
-          .collection('productos')
-          .doc(product.id.toString())
-          .set(carritoData);
+          .collection('items')
+          .doc(product.id.toString());
+
+      // Verificar si el producto ya existe
+      final docSnapshot = await docRef.get();
+      
+      if (docSnapshot.exists) {
+        // Si existe, incrementar la cantidad
+        final existingData = docSnapshot.data()!;
+        final cantidadActual = existingData['cantidad'] ?? 1;
+        final nuevaCantidad = cantidadActual + cantidad;
+        
+        await docRef.update({
+          'cantidad': nuevaCantidad,
+          'fechaActualizado': Timestamp.now(),
+        });
+      } else {
+        // Si no existe, crear nuevo item
+        final cartItem = CartItem.fromProduct(product, cantidad: cantidad);
+        final carritoData = cartItem.toJson();
+        carritoData['fechaAgregado'] = Timestamp.now();
+        carritoData['fechaActualizado'] = Timestamp.now();
+        carritoData['userId'] = userId;
+
+        await docRef.set(carritoData);
+      }
 
       return true;
     } catch (e) {
+      debugPrint('Error al agregar a Firestore: $e');
       return false;
     }
   }
 
-  // Agregar producto localmente
-  Future<bool> _agregarLocalmente(Product product) async {
+  // Agregar producto localmente con manejo de cantidades
+  Future<bool> _agregarLocalmente(Product product, int cantidad) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      List<Product> cartItems = await _obtenerCarritoLocal();
+      List<CartItem> cartItems = await _obtenerCarritoLocalItems();
       
-      // Verificar si el producto ya existe
-      if (!cartItems.any((item) => item.id == product.id)) {
-        cartItems.add(product);
-        await _guardarCarritoLocal(cartItems);
-        _localCartController.add(cartItems);
+      // Buscar si el producto ya existe
+      final existingIndex = cartItems.indexWhere((item) => item.productId == product.id);
+      
+      if (existingIndex != -1) {
+        // Si existe, incrementar la cantidad
+        cartItems[existingIndex].cantidad += cantidad;
+      } else {
+        // Si no existe, agregar nuevo item
+        cartItems.add(CartItem.fromProduct(product, cantidad: cantidad));
+      }
+      
+      await _guardarCarritoLocalItems(cartItems);
+      _localCartController.add(cartItems);
+      
+      return true;
+    } catch (e) {
+      debugPrint('Error al agregar localmente: $e');
+      return false;
+    }
+  }
+
+  // Actualizar cantidad de un producto específico
+  Future<bool> actualizarCantidad(int productId, int nuevaCantidad, String? userId) async {
+    try {
+      if (nuevaCantidad <= 0) {
+        return await quitarDeCarrito(productId, userId);
+      }
+
+      if (userId != null && userId.isNotEmpty) {
+        // Actualizar en Firestore
+        await _firestore
+            .collection('carrito')
+            .doc(userId)
+            .collection('items')
+            .doc(productId.toString())
+            .update({
+          'cantidad': nuevaCantidad,
+          'fechaActualizado': Timestamp.now(),
+        });
+      } else {
+        // Actualizar localmente
+        List<CartItem> cartItems = await _obtenerCarritoLocalItems();
+        final index = cartItems.indexWhere((item) => item.productId == productId);
+        
+        if (index != -1) {
+          cartItems[index].cantidad = nuevaCantidad;
+          await _guardarCarritoLocalItems(cartItems);
+          _localCartController.add(cartItems);
+        }
       }
       
       return true;
     } catch (e) {
+      debugPrint('Error al actualizar cantidad: $e');
       return false;
     }
   }
@@ -88,22 +151,21 @@ class CartServices {
   Future<bool> quitarDeCarrito(int productId, String? userId) async {
     try {
       if (userId != null && userId.isNotEmpty) {
-        // Usuario logueado - quitar de Firestore
         await _firestore
             .collection('carrito')
             .doc(userId)
-            .collection('productos')
+            .collection('items')
             .doc(productId.toString())
             .delete();
       } else {
-        // Usuario no logueado - quitar localmente
-        List<Product> cartItems = await _obtenerCarritoLocal();
-        cartItems.removeWhere((item) => item.id == productId);
-        await _guardarCarritoLocal(cartItems);
+        List<CartItem> cartItems = await _obtenerCarritoLocalItems();
+        cartItems.removeWhere((item) => item.productId == productId);
+        await _guardarCarritoLocalItems(cartItems);
         _localCartController.add(cartItems);
       }
       return true;
     } catch (e) {
+      debugPrint('Error al quitar del carrito: $e');
       return false;
     }
   }
@@ -112,104 +174,160 @@ class CartServices {
   Future<bool> estanEnCarrito(int productId, String? userId) async {
     try {
       if (userId != null && userId.isNotEmpty) {
-        // Usuario logueado - verificar en Firestore
         final doc = await _firestore
             .collection('carrito')
             .doc(userId)
-            .collection('productos')
+            .collection('items')
             .doc(productId.toString())
             .get();
         return doc.exists;
       } else {
-        // Usuario no logueado - verificar localmente
-        List<Product> cartItems = await _obtenerCarritoLocal();
-        return cartItems.any((item) => item.id == productId);
+        List<CartItem> cartItems = await _obtenerCarritoLocalItems();
+        return cartItems.any((item) => item.productId == productId);
       }
     } catch (e) {
       return false;
     }
   }
 
-  // Obtener carrito (local o Firestore)
-  Future<List<Product>> obtenerCarrito(String? userId) async {
+  // Obtener cantidad específica de un producto
+  Future<int> obtenerCantidadProducto(int productId, String? userId) async {
     try {
       if (userId != null && userId.isNotEmpty) {
-        // Usuario logueado - obtener de Firestore
+        final doc = await _firestore
+            .collection('carrito')
+            .doc(userId)
+            .collection('items')
+            .doc(productId.toString())
+            .get();
+        
+        if (doc.exists) {
+          return doc.data()?['cantidad'] ?? 0;
+        }
+      } else {
+        List<CartItem> cartItems = await _obtenerCarritoLocalItems();
+        final item = cartItems.firstWhere(
+          (item) => item.productId == productId,
+          orElse: () => CartItem.fromProduct(
+            Product(id: 0, nombre: '', descripcion: '', precio: 0, 
+                   imagenUrl: '', categoria: '', marca: '', stock: 0),
+            cantidad: 0,
+          ),
+        );
+        return item.cantidad;
+      }
+      return 0;
+    } catch (e) {
+      return 0;
+    }
+  }
+
+  // Obtener carrito como CartItems
+  Future<List<CartItem>> obtenerCarritoItems(String? userId) async {
+    try {
+      if (userId != null && userId.isNotEmpty) {
         final querySnapshot = await _firestore
             .collection('carrito')
             .doc(userId)
-            .collection('productos')
+            .collection('items')
             .orderBy('fechaAgregado', descending: true)
             .get();
 
         return querySnapshot.docs.map((doc) {
           final data = doc.data();
           data.remove('fechaAgregado');
+          data.remove('fechaActualizado');
           data.remove('userId');
-          return Product.fromJson(data);
+          return CartItem.fromJson(data);
         }).toList();
       } else {
-        // Usuario no logueado - obtener localmente
-        return await _obtenerCarritoLocal();
+        return await _obtenerCarritoLocalItems();
       }
     } catch (e) {
+      debugPrint('Error al obtener carrito: $e');
       return [];
     }
   }
 
-  // Stream del carrito (local o Firestore)
-  Stream<List<Product>> carritoStream(String? userId) {
+  // Obtener carrito como Products (para compatibilidad)
+  Future<List<Product>> obtenerCarrito(String? userId) async {
+    final cartItems = await obtenerCarritoItems(userId);
+    return cartItems.map((item) => item.toProduct()).toList();
+  }
+
+  // Stream del carrito como CartItems
+  Stream<List<CartItem>> carritoItemsStream(String? userId) {
     if (userId != null && userId.isNotEmpty) {
-      // Usuario logueado - stream de Firestore
       return _firestore
           .collection('carrito')
           .doc(userId)
-          .collection('productos')
+          .collection('items')
           .orderBy('fechaAgregado', descending: true)
           .snapshots()
           .map((snapshot) => snapshot.docs.map((doc) {
             final data = doc.data();
             data.remove('fechaAgregado');
+            data.remove('fechaActualizado');
             data.remove('userId');
-            return Product.fromJson(data);
+            return CartItem.fromJson(data);
           }).toList());
     } else {
-      // Usuario no logueado - stream local
-      return _localCartController.stream.startsWith(_obtenerCarritoLocal());
+      return _localCartController.stream.startsWith(_obtenerCarritoLocalItems());
     }
   }
 
-  // Contar productos en el carrito
+  // Stream del carrito como Products (para compatibilidad)
+  Stream<List<Product>> carritoStream(String? userId) {
+    return carritoItemsStream(userId).map((cartItems) =>
+        cartItems.map((item) => item.toProduct()).toList());
+  }
+
+  // Contar productos en el carrito (suma de cantidades)
   Future<int> contarCarrito(String? userId) async {
     try {
-      if (userId != null && userId.isNotEmpty) {
-        // Usuario logueado
-        final querySnapshot = await _firestore
-            .collection('carrito')
-            .doc(userId)
-            .collection('productos')
-            .get();
-        return querySnapshot.docs.length;
-      } else {
-        // Usuario no logueado
-        List<Product> cartItems = await _obtenerCarritoLocal();
-        return cartItems.length;
-      }
+      final cartItems = await obtenerCarritoItems(userId);
+      return cartItems.fold<int>(
+        0,
+        (int sum, CartItem item) => sum + item.cantidad,
+      );
     } catch (e) {
       return 0;
     }
   }
 
+  // Contar ítems únicos en el carrito
+  Future<int> contarItemsUnicos(String? userId) async {
+    try {
+      final cartItems = await obtenerCarritoItems(userId);
+      return cartItems.length;
+    } catch (e) {
+      return 0;
+    }
+  }
+
+  // Calcular precio total del carrito
+  Future<double> calcularTotalCarrito(String? userId) async {
+    try {
+      final cartItems = await obtenerCarritoItems(userId);
+      return cartItems.fold<double>(
+        0.0,
+        (double sum, CartItem item) => sum + item.subtotal,
+      );
+    } catch (e) {
+      return 0.0;
+    }
+  }
+
+
   // Limpiar carrito
   Future<bool> limpiarCarrito(String? userId) async {
     try {
       if (userId != null && userId.isNotEmpty) {
-        // Usuario logueado - limpiar Firestore
         final batch = _firestore.batch();
         final querySnapshot = await _firestore
             .collection('carrito')
             .doc(userId)
-            .collection('productos')
+            .collection('items')
             .get();
 
         for (var doc in querySnapshot.docs) {
@@ -217,8 +335,7 @@ class CartServices {
         }
         await batch.commit();
       } else {
-        // Usuario no logueado - limpiar local
-        await _guardarCarritoLocal([]);
+        await _guardarCarritoLocalItems([]);
         _localCartController.add([]);
       }
       return true;
@@ -227,7 +344,7 @@ class CartServices {
     }
   }
 
-  // Toggle carrito
+  // Toggle carrito (mantener compatibilidad)
   Future<bool> toogleCarrito(Product product, String? userId) async {
     try {
       final estaEnCarrito = await estanEnCarrito(product.id, userId);
@@ -242,61 +359,90 @@ class CartServices {
     }
   }
 
-  // MÉTODOS PARA MANEJO LOCAL
-  Future<List<Product>> _obtenerCarritoLocal() async {
+  // MÉTODOS PARA MANEJO LOCAL CON CARTITEM
+  Future<List<CartItem>> _obtenerCarritoLocalItems() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final cartJson = prefs.getString(_localCartKey);
       
       if (cartJson != null) {
         final List<dynamic> cartList = json.decode(cartJson);
-        return cartList.map((item) => Product.fromJson(item)).toList();
+        return cartList.map((item) => CartItem.fromJson(item)).toList();
       }
       return [];
     } catch (e) {
+      debugPrint('Error al obtener carrito local: $e');
       return [];
     }
   }
 
-  Future<void> _guardarCarritoLocal(List<Product> products) async {
+  Future<void> _guardarCarritoLocalItems(List<CartItem> cartItems) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final cartJson = json.encode(products.map((p) => p.toJson()).toList());
+      final cartJson = json.encode(cartItems.map((item) => item.toJson()).toList());
       await prefs.setString(_localCartKey, cartJson);
     } catch (e) {
-      print('Error al guardar carrito local: $e');
+      debugPrint('Error al guardar carrito local: $e');
     }
   }
 
-  // SINCRONIZACIÓN AL LOGUEAR
+
+  // SINCRONIZACIÓN AL LOGUEAR (actualizada)
   Future<bool> sincronizarCarritoAlLoguear(String userId) async {
     try {
-      // Obtener carrito local
-      List<Product> carritoLocal = await _obtenerCarritoLocal();
+      List<CartItem> carritoLocal = await _obtenerCarritoLocalItems();
       
       if (carritoLocal.isEmpty) {
-        return true; // No hay nada que sincronizar
+        return true;
       }
 
-      // Obtener carrito existente en Firestore
-      List<Product> carritoFirestore = await obtenerCarrito(userId);
+      List<CartItem> carritoFirestore = await obtenerCarritoItems(userId);
       
-      // Combinar carritos (evitar duplicados)
-      Set<int> idsExistentes = carritoFirestore.map((p) => p.id).toSet();
-      List<Product> nuevosProductos = carritoLocal.where((p) => !idsExistentes.contains(p.id)).toList();
+      // Combinar carritos inteligentemente
+      Map<int, CartItem> carritoFinal = {};
       
-      // Agregar productos nuevos a Firestore
-      for (Product producto in nuevosProductos) {
-        await _agregarAFirestore(producto, userId);
+      // Agregar items de Firestore
+      for (CartItem item in carritoFirestore) {
+        carritoFinal[item.productId] = item;
       }
+      
+      // Combinar con items locales
+      for (CartItem itemLocal in carritoLocal) {
+        if (carritoFinal.containsKey(itemLocal.productId)) {
+          // Si ya existe, sumar cantidades
+          carritoFinal[itemLocal.productId]!.cantidad += itemLocal.cantidad;
+        } else {
+          // Si no existe, agregar
+          carritoFinal[itemLocal.productId] = itemLocal;
+        }
+      }
+      
+      // Guardar items combinados en Firestore
+      final batch = _firestore.batch();
+      for (CartItem item in carritoFinal.values) {
+        final docRef = _firestore
+            .collection('carrito')
+            .doc(userId)
+            .collection('items')
+            .doc(item.productId.toString());
+        
+        final data = item.toJson();
+        data['fechaAgregado'] = Timestamp.now();
+        data['fechaActualizado'] = Timestamp.now();
+        data['userId'] = userId;
+        
+        batch.set(docRef, data, SetOptions(merge: true));
+      }
+      
+      await batch.commit();
 
-      // Limpiar carrito local después de sincronizar
-      await _guardarCarritoLocal([]);
+      // Limpiar carrito local
+      await _guardarCarritoLocalItems([]);
       _localCartController.add([]);
       
       return true;
     } catch (e) {
-      print('Error al sincronizar carrito: $e');
+      debugPrint('Error al sincronizar carrito: $e');
       return false;
     }
   }
@@ -304,20 +450,18 @@ class CartServices {
   // Limpiar carrito local al cerrar sesión
   Future<void> limpiarCarritoLocal() async {
     try {
-      await _guardarCarritoLocal([]);
+      await _guardarCarritoLocalItems([]);
       _localCartController.add([]);
     } catch (e) {
-      print('Error al limpiar carrito local: $e');
+      debugPrint('Error al limpiar carrito local: $e');
     }
   }
 
   // Verificar si hay productos en el carrito local
   Future<bool> tieneProductosLocales() async {
-    List<Product> carritoLocal = await _obtenerCarritoLocal();
+    final carritoLocal = await _obtenerCarritoLocalItems();
     return carritoLocal.isNotEmpty;
   }
-
-  
 
   // Dispose del StreamController
   void dispose() {
@@ -332,6 +476,3 @@ extension StreamExtension<T> on Stream<T> {
     yield* this;
   }
 }
-
-
-

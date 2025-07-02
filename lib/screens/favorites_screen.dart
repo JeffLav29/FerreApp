@@ -1,5 +1,5 @@
 import 'package:ferre_app/screens/main_screen.dart';
-import 'package:ferre_app/services/cart_manager.dart';
+import 'package:ferre_app/services/cart_services.dart'; // Cambio: nuevo servicio
 import 'package:ferre_app/services/favorites_service.dart';
 import 'package:flutter/material.dart';
 import 'package:ferre_app/models/product.dart';
@@ -18,60 +18,50 @@ class FavoritesScreen extends StatefulWidget {
 
 class _FavoritesScreenState extends State<FavoritesScreen> {
   final FavoritosService _favoritosService = FavoritosService();
+  final CartServices _cartServices = CartServices(); // Nuevo servicio de carrito
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.clear_all),
-            onPressed: () => _showClearAllDialog(),
-            tooltip: 'Limpiar todo',
-          ),
-        ],
-      ),
-      body: StreamBuilder<List<Product>>(
-        stream: _favoritosService.favoritosStream(widget.userId),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(
-              child: CircularProgressIndicator(),
-            );
-          }
+    return StreamBuilder<List<Product>>(
+      stream: _favoritosService.favoritosStream(widget.userId),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(
+            child: CircularProgressIndicator(),
+          );
+        }
 
-          if (snapshot.hasError) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.error_outline,
-                    size: 64,
-                    color: Colors.red[400],
+        if (snapshot.hasError) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.error_outline,
+                  size: 64,
+                  color: Colors.red[400],
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Error al cargar favoritos',
+                  style: TextStyle(
+                    fontSize: 18,
+                    color: Colors.red[600],
                   ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Error al cargar favoritos',
-                    style: TextStyle(
-                      fontSize: 18,
-                      color: Colors.red[600],
-                    ),
-                  ),
-                ],
-              ),
-            );
-          }
+                ),
+              ],
+            ),
+          );
+        }
 
-          final favoriteProducts = snapshot.data ?? [];
+        final favoriteProducts = snapshot.data ?? [];
 
-          if (favoriteProducts.isEmpty) {
-            return _buildEmptyState();
-          }
+        if (favoriteProducts.isEmpty) {
+          return _buildEmptyState();
+        }
 
-          return _buildFavoritesList(favoriteProducts);
-        },
-      ),
+        return _buildFavoritesList(favoriteProducts);
+      },
     );
   }
 
@@ -213,8 +203,6 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 8),
-                  // Mostrar precio con descuento si está en oferta
-                  const SizedBox(height: 8),
                   // Mostrar precio
                   Row(
                     children: [
@@ -276,38 +264,36 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
     }
   }
 
-  void _addToCart(Product product) {
+  // Método actualizado para usar el nuevo servicio
+  Future<void> _addToCart(Product product) async {
     try {
-      // Verificar si el producto ya está en el carrito
-      if (CartManager.cartItems.any((item) => item.id == product.id)) {
+      final userIdParam = widget.userId.isNotEmpty ? widget.userId : null;
+      final success = await _cartServices.agregarACarrito(product, userIdParam);
+      
+      if (success) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('${product.nombre} ya está en el carrito'),
-            backgroundColor: Colors.orange[600],
+            content: Text('${product.nombre} agregado al carrito'),
+            backgroundColor: Colors.green[600],
+            behavior: SnackBarBehavior.floating,
+            action: SnackBarAction(
+              label: 'Ver carrito',
+              textColor: Colors.white,
+              onPressed: () {
+                Navigator.pushNamed(context, '/cart');
+              },
+            ),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Error al agregar al carrito'),
+            backgroundColor: Colors.red,
             behavior: SnackBarBehavior.floating,
           ),
         );
-        return;
       }
-
-      // Agregar al carrito usando CartManager
-      CartManager.addToCart(product);
-      
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('${product.nombre} agregado al carrito'),
-          backgroundColor: Colors.green[600],
-          behavior: SnackBarBehavior.floating,
-          action: SnackBarAction(
-            label: 'Ver carrito',
-            textColor: Colors.white,
-            onPressed: () {
-              // Navegar al carrito (ajusta la ruta según tu app)
-              Navigator.pushNamed(context, '/cart');
-            },
-          ),
-        ),
-      );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -319,49 +305,9 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
     }
   }
 
-  void _showClearAllDialog() {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Limpiar favoritos'),
-          content: const Text('¿Estás seguro de que quieres eliminar todos los productos de favoritos?'),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancelar'),
-            ),
-            TextButton(
-              onPressed: () async {
-                final success = await _favoritosService.limpiarFavoritos(widget.userId);
-                Navigator.of(context).pop();
-                
-                if (success) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Todos los favoritos han sido eliminados'),
-                      backgroundColor: Colors.red,
-                      behavior: SnackBarBehavior.floating,
-                    ),
-                  );
-                } else {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Error al eliminar favoritos'),
-                      backgroundColor: Colors.red,
-                      behavior: SnackBarBehavior.floating,
-                    ),
-                  );
-                }
-              },
-              child: const Text('Eliminar todo', style: TextStyle(color: Colors.red)),
-            ),
-          ],
-        );
-      },
-    );
+  @override
+  void dispose() {
+    _cartServices.dispose(); // Limpiar recursos del servicio
+    super.dispose();
   }
 }

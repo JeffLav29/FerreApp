@@ -253,8 +253,6 @@ class WhatsAppService {
     }
     
     message.writeln('');
-    message.writeln('¡Gracias por tu compra! 🙏');
-    message.writeln('En breve nos pondremos en contacto contigo.');
     
     return message.toString();
   }

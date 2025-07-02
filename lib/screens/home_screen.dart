@@ -84,7 +84,7 @@ class _HomeScreenState extends State<HomeScreen> {
           Product product = Product.fromJson(data);
           products.add(product);
         } catch (e) {
-          print('Error al procesar producto ${doc.id}: $e');
+          debugPrint('Error al procesar producto ${doc.id}: $e');
         }
       }
 
@@ -99,7 +99,7 @@ class _HomeScreenState extends State<HomeScreen> {
         _errorMessage = 'Error al cargar productos: $e';
         _isLoading = false;
       });
-      print('Error loading products: $e');
+      ('Error loading products: $e');
     }
   }
 
@@ -293,112 +293,111 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
-    Future<void> _addToCart(Product product) async {
+  // Reemplaza el método _addToCart en HomeScreen con este código:
+  Future<void> _addToCart(Product product) async {
     if (!mounted) return;
     
     try {
-      // Mostrar indicador de carga mientras se procesa
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Row(
-            children: [
-              SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+      // Mostrar indicador de carga
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Row(
+              children: [
+                SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  ),
                 ),
-              ),
-              SizedBox(width: 16),
-              Text('Agregando al carrito...'),
-            ],
+                SizedBox(width: 16),
+                Text('Agregando al carrito...'),
+              ],
+            ),
+            duration: Duration(seconds: 1),
+            backgroundColor: Colors.orange,
+            behavior: SnackBarBehavior.floating,
           ),
-          duration: Duration(seconds: 1),
-          backgroundColor: Colors.orange,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+        );
+      }
 
-      // Verificar si el producto ya está en el carrito
-      final isInCart = await _cartService.estanEnCarrito(product.id, widget.userId);
+      // NUEVA LÓGICA: Ya no verificamos si existe, simplemente agregamos
+      // El servicio se encarga de manejar las cantidades automáticamente
+      final success = await _cartService.agregarACarrito(product, widget.userId);
       
-      if (isInCart) {
-        // Ocultar el snackbar anterior
+      // Ocultar el snackbar de carga
+      if (mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      }
+      
+      if (success) {
+        // Obtener la cantidad actual del producto en el carrito
+        final cantidadActual = await _cartService.obtenerCantidadProducto(product.id, widget.userId);
+        
+        final mensaje = widget.userId.isNotEmpty
+            ? '${product.nombre} agregado al carrito ($cantidadActual unidad${cantidadActual > 1 ? 'es' : ''})'
+            : '${product.nombre} agregado al carrito temporal ($cantidadActual unidad${cantidadActual > 1 ? 'es' : ''})';
+            
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(mensaje),
+              backgroundColor: Colors.green[600],
+              behavior: SnackBarBehavior.floating,
+              duration: const Duration(seconds: 2),
+              action: SnackBarAction(
+                label: 'Ver carrito',
+                textColor: Colors.white,
+                onPressed: () {
+                  if (mounted) {
+                    Navigator.pushNamed(context, '/cart');
+                  }
+                },
+              ),
+            ),
+          );
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Error al agregar producto al carrito'),
+              backgroundColor: Colors.red,
+              behavior: SnackBarBehavior.floating,
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      // Ocultar cualquier snackbar anterior y mostrar error
+      if (mounted) {
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
         
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('${product.nombre} ya está en el carrito'),
-            backgroundColor: Colors.orange[600],
-            behavior: SnackBarBehavior.floating,
-            duration: const Duration(seconds: 2),
-          ),
-        );
-        return;
-      }
-
-      // Agregar el producto al carrito (puede ser local o Firestore)
-      final success = await _cartService.agregarACarrito(product, widget.userId);
-      
-      // Ocultar el snackbar de carga
-      ScaffoldMessenger.of(context).hideCurrentSnackBar();
-      
-      if (success) {
-        final mensaje = widget.userId != null && widget.userId!.isNotEmpty
-            ? '${product.nombre} agregado al carrito'
-            : '${product.nombre} agregado al carrito temporal';
-            
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(mensaje),
-            backgroundColor: Colors.green[600],
-            behavior: SnackBarBehavior.floating,
-            duration: const Duration(seconds: 2),
-            action: SnackBarAction(
-              label: 'Ver carrito',
-              textColor: Colors.white,
-              onPressed: () {
-                Navigator.pushNamed(context, '/cart');
-              },
-            ),
-          ),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Error al agregar producto al carrito'),
+            content: Text('Error inesperado: $e'),
             backgroundColor: Colors.red,
             behavior: SnackBarBehavior.floating,
-            duration: Duration(seconds: 2),
+            duration: const Duration(seconds: 3),
           ),
         );
       }
-    } catch (e) {
-      // Ocultar cualquier snackbar anterior
-      ScaffoldMessenger.of(context).hideCurrentSnackBar();
-      
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error inesperado: $e'),
-          backgroundColor: Colors.red,
-          behavior: SnackBarBehavior.floating,
-          duration: const Duration(seconds: 3),
-        ),
-      );
     }
   }
 
-    Future<void> _sincronizarCarritoSiEsNecesario() async {
+  Future<void> _sincronizarCarritoSiEsNecesario() async {
     // Solo sincronizar si hay un userId válido
     if (widget.userId.isNotEmpty) {
       try {
         final sincronizado = await _cartService.verificarYSincronizarCarrito(widget.userId);
         if (sincronizado) {
-          print('Carrito sincronizado exitosamente para usuario: ${widget.userId}');
+          debugPrint('Carrito sincronizado exitosamente para usuario: ${widget.userId}');
         }
       } catch (e) {
-        print('Error al sincronizar carrito: $e');
+        debugPrint('Error al sincronizar carrito: $e');
       }
     }
   }
