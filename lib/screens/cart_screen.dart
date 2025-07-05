@@ -4,6 +4,7 @@ import 'package:ferre_app/screens/login_screen.dart';
 import 'package:ferre_app/services/cart_services.dart';
 import 'package:ferre_app/services/whatsapp_service.dart';
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class CartScreen extends StatefulWidget {
   final String? userId; // Cambiado a nullable para soportar usuarios no logueados
@@ -20,36 +21,26 @@ class CartScreen extends StatefulWidget {
 class _CartScreenState extends State<CartScreen> {
   final CartServices _cartService = CartServices();
   final WhatsAppService _whatsappService = WhatsAppService();
-  final TextEditingController _nameController = TextEditingController();
   final TextEditingController _notesController = TextEditingController();
   bool _isLoading = false;
 
-  // ✅ NUEVO: Números fijos disponibles
-  final List<Map<String, String>> _availableNumbers = [
-    {
-      'number': '900335726',
-      'name': 'Ventas Principal',
-      'description': 'Atención general y consultas'
-    },
-    {
-      'number': '907906862',
-      'name': 'Ventas Secundaria',
-      'description': 'Productos técnicos y cotizaciones'
-    },
-  ];
-
-  // ✅ NUEVO: Variable para almacenar el número seleccionado
-  String? _selectedPhoneNumber;
+  // Número de teléfono fijo - CAMBIAR POR TU NÚMERO
+  final String _fixedPhoneNumber = "900335726"; // Cambia este número por el tuyo
 
   @override
   void dispose() {
-    _nameController.dispose();
     _notesController.dispose();
     super.dispose();
   }
 
   // Getter para verificar si el usuario está logueado
   bool get _isUserLoggedIn => widget.userId != null && widget.userId!.isNotEmpty;
+
+  // Método para obtener el nombre del usuario de Firebase
+  String? _getCurrentUserName() {
+    final user = FirebaseAuth.instance.currentUser;
+    return user?.displayName ?? user?.email?.split('@')[0];
+  }
 
   // Actualizado para usar CartItem con el alias
   double _calculateTotalPrice(List<models.CartItem> cartItems) {
@@ -61,7 +52,7 @@ class _CartScreenState extends State<CartScreen> {
     return cartItems.fold(0, (sum, item) => sum + item.cantidad);
   }
 
-  // ✅ MODIFICADO: Diálogo actualizado con selección de números
+  // Actualizado para usar CartItem con el alias
   Future<void> _showCheckoutDialog(List<models.CartItem> cartItems) async {
     final totalPrice = _calculateTotalPrice(cartItems);
     final totalQuantity = _calculateTotalQuantity(cartItems);
@@ -71,157 +62,112 @@ class _CartScreenState extends State<CartScreen> {
       _showLoginRequiredDialog();
       return;
     }
+
+    // Obtener nombre del usuario
+    final userName = _getCurrentUserName();
     
     return showDialog<void>(
       context: context,
       barrierDismissible: false,
       builder: (BuildContext context) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            return AlertDialog(
-              title: const Text('Finalizar Compra'),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Total: S/. ${totalPrice.toStringAsFixed(2)}',
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.green,
-                      ),
-                    ),
-                    Text(
-                      'Productos: $totalQuantity unidades',
-                      style: const TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey,
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    
-                    // Campo de nombre
-                    TextField(
-                      controller: _nameController,
-                      decoration: InputDecoration(
-                        labelText: 'Tu nombre (opcional)',
-                        prefixIcon: const Icon(Icons.person),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 15),
-                    
-                    // ✅ NUEVO: Selector de números de WhatsApp
-                    const Text(
-                      'Selecciona el número de WhatsApp:',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    
-                    // Lista de números disponibles
-                    Container(
-                      decoration: BoxDecoration(
-                        border: Border.all(color: Colors.grey.shade300),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Column(
-                        children: _availableNumbers.map((numberInfo) {
-                          return RadioListTile<String>(
-                            title: Row(
-                              children: [
-                                const Icon(Icons.phone, size: 16, color: Colors.green),
-                                const SizedBox(width: 8),
-                                Text(
-                                  numberInfo['number']!,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            subtitle: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  numberInfo['name']!,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w500,
-                                    color: Colors.blue,
-                                  ),
-                                ),
-                                Text(
-                                  numberInfo['description']!,
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.grey[600],
-                                  ),
-                                ),
-                              ],
-                            ),
-                            value: numberInfo['number'].toString(),
-                            groupValue: _selectedPhoneNumber,
-                            onChanged: (String? value) {
-                              setDialogState(() {
-                                _selectedPhoneNumber = value;
-                              });
-                            },
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
-                            ),
-                          );
-                        }).toList(),
-                      ),
-                    ),
-                    
-                    const SizedBox(height: 15),
-                    
-                    // Campo de notas
-                    TextField(
-                      controller: _notesController,
-                      maxLines: 3,
-                      decoration: InputDecoration(
-                        labelText: 'Notas adicionales (opcional)',
-                        prefixIcon: const Icon(Icons.notes),
-                        hintText: 'Dirección, método de pago, etc.',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                      ),
-                    ),
-                  ],
+        return AlertDialog(
+          title: const Text('Finalizar Compra'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Total: S/. ${totalPrice.toStringAsFixed(2)}',
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.green,
+                  ),
                 ),
-              ),
-              actions: [
-                TextButton(
-                  child: const Text('Cancelar'),
-                  onPressed: () {
-                    Navigator.of(context).pop();
-                  },
+                Text(
+                  'Productos: $totalQuantity unidades',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey,
+                  ),
                 ),
-                FilledButton(
-                  onPressed: _isLoading ? null : () => _sendWhatsAppMessage(cartItems, totalPrice),
-                  child: _isLoading 
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                        ),
-                      )
-                    : const Text('Enviar por WhatsApp'),
+                const SizedBox(height: 20),
+                
+                // Mostrar información del usuario
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(Icons.person, size: 20),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Cliente: ${userName ?? 'Usuario'}',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          const Icon(Icons.phone, size: 20),
+                          const SizedBox(width: 8),
+                          Text(
+                            'WhatsApp: $_fixedPhoneNumber',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                
+                const SizedBox(height: 15),
+                TextField(
+                  controller: _notesController,
+                  maxLines: 3,
+                  decoration: InputDecoration(
+                    labelText: 'Notas adicionales (opcional)',
+                    hintText: 'Dirección, método de pago, etc.',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
                 ),
               ],
-            );
-          },
+            ),
+          ),
+          actions: [
+            TextButton(
+              child: const Text('Cancelar'),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+            FilledButton(
+              onPressed: _isLoading ? null : () => _sendWhatsAppMessage(cartItems, totalPrice, userName),
+              child: _isLoading 
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
+                  )
+                : const Text('Enviar por WhatsApp'),
+            ),
+          ],
         );
       },
     );
@@ -267,13 +213,8 @@ class _CartScreenState extends State<CartScreen> {
     );
   }
 
-  // ✅ MODIFICADO: Validación del número seleccionado
-  Future<void> _sendWhatsAppMessage(List<models.CartItem> cartItems, double totalPrice) async {
-    if (_selectedPhoneNumber == null || _selectedPhoneNumber!.isEmpty) {
-      _showErrorSnackBar('Por favor, selecciona un número de WhatsApp');
-      return;
-    }
-
+  // Actualizado para usar CartItem con el alias y recibir el nombre del usuario
+  Future<void> _sendWhatsAppMessage(List<models.CartItem> cartItems, double totalPrice, String? userName) async {
     if (!mounted) return;
 
     setState(() {
@@ -290,13 +231,11 @@ class _CartScreenState extends State<CartScreen> {
       }
 
       final success = await _whatsappService.sendCartFromProducts(
-        phoneNumber: _selectedPhoneNumber!, // ✅ CAMBIADO: Usar número seleccionado
+        phoneNumber: _fixedPhoneNumber, // Usar el número fijo
         products: products,
         quantities: quantities,
         totalAmount: totalPrice,
-        customerName: _nameController.text.trim().isNotEmpty 
-            ? _nameController.text.trim() 
-            : null,
+        customerName: userName ?? 'Usuario', // Usar nombre de Firebase
         additionalNotes: _notesController.text.trim().isNotEmpty 
             ? _notesController.text.trim() 
             : null,
@@ -436,11 +375,8 @@ void _showClearCartDialog() {
     );
   }
 
-  // ✅ MODIFICADO: Limpiar también la selección de número
   void _clearForm() {
-    _nameController.clear();
     _notesController.clear();
-    _selectedPhoneNumber = null; // ✅ NUEVO: Limpiar selección
   }
 
   Widget _buildEmptyState() {
@@ -726,7 +662,7 @@ void _showClearCartDialog() {
                       child: FilledButton.icon(
                         onPressed: () => _showCheckoutDialog(cartItems),
                         icon: Icon(
-                          _isUserLoggedIn ? Icons.whatshot_sharp : Icons.login,
+                          _isUserLoggedIn ? Icons.chat_bubble : Icons.login,
                           color: Colors.white,
                         ),
                         label: Text(_isUserLoggedIn ? 'Finalizar compra' : 'Iniciar sesión para comprar'),
